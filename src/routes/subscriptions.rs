@@ -9,7 +9,15 @@ pub struct FormData {
     pub name: String,
 }
 
-#[tracing::instrument(name = "Adding a new subscriber", skip(db_pool, form), fields(request_id = %Uuid::new_v4(), subscriber_email = %form.email, subscriber_name = %form.name))]
+#[tracing::instrument(
+    name = "Adding a new subscriber",
+    skip(db_pool, form),
+    fields(
+        request_id = %Uuid::new_v4(),
+        subscriber_email = %form.email,
+        subscriber_name = %form.name
+    )
+)]
 pub async fn subscribe(State(db_pool): State<PgPool>, Form(form): Form<FormData>) -> StatusCode {
     match insert_subscriber(&db_pool, &form).await {
         Ok(_) => StatusCode::OK,

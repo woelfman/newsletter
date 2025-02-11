@@ -5,6 +5,7 @@ use axum::{
 };
 use sqlx::PgPool;
 use tokio::net::TcpListener;
+use tower_http::trace::TraceLayer;
 
 use crate::routes::{health_check, subscribe};
 
@@ -15,7 +16,8 @@ pub fn run(
     let app = Router::new()
         .route("/health_check", get(health_check))
         .route("/subscriptions", post(subscribe))
-        .with_state(db_pool);
+        .with_state(db_pool)
+        .layer(TraceLayer::new_for_http());
 
     let server = axum::serve(listener, app);
 
