@@ -5,6 +5,7 @@ use newsletter::{
     startup::run,
     telemetry::{get_subscriber, init_subscriber},
 };
+use secrecy::ExposeSecret;
 use sqlx::{Connection, Executor, PgConnection, PgPool};
 use uuid::Uuid;
 
@@ -49,7 +50,7 @@ async fn spawn_app() -> TestApp {
 
 async fn configure_database(config: &DatabaseSettings) -> PgPool {
     // Create database
-    let connection = PgPool::connect(&config.conneciton_string_without_db())
+    let connection = PgPool::connect(config.conneciton_string_without_db().expose_secret())
         .await
         .expect("Failed to connect to Postgres");
     connection
@@ -58,7 +59,7 @@ async fn configure_database(config: &DatabaseSettings) -> PgPool {
         .expect("Failed to create database");
 
     // Migrate database
-    let connection_pool = PgPool::connect(&config.connection_string())
+    let connection_pool = PgPool::connect(config.connection_string().expose_secret())
         .await
         .expect("Failed to conenct to Postgres");
     sqlx::migrate!("./migrations")
@@ -95,7 +96,7 @@ async fn subscribe_returns_a_200_for_valid_form_data() {
     let app = spawn_app().await;
     let configuration = get_configuration().expect("Failed to read configuration");
     let connection_string = configuration.database.connection_string();
-    let mut connection = PgConnection::connect(&connection_string)
+    let mut connection = PgConnection::connect(connection_string.expose_secret())
         .await
         .expect("Failed to connect to Postgres.");
     let client = reqwest::Client::new();
