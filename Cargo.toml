@@ -1,12 +1,17 @@
 [package]
-name = "news-letter"
+name = "newsletter"
 version = "0.1.0"
 authors = ["Matt Woelfel <matt@woelfware.com>"]
 edition = "2021"
 
 [dependencies]
-axum = "0.8.1"
+axum = { version = "0.8.1", features = [] }
+chrono = "0.4.39"
+config = { version = "0.15.8", default-features = false, features = ["yaml"] }
+serde = { version = "1.0.217", features = ["derive"] }
+sqlx = { version = "0.8.3", features = ["chrono", "macros", "migrate", "postgres", "runtime-tokio-rustls", "uuid"], default-features = false }
 tokio = { version = "1.43.0", features = ["macros", "rt-multi-thread"] }
+uuid = { version = "1.13.1", features = ["v4"] }
 
 [dev-dependencies]
 reqwest = "0.12.12"
