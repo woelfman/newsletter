@@ -12,7 +12,7 @@ use tower_http::trace::TraceLayer;
 use crate::{
     configuration::{DatabaseSettings, Settings},
     email_client::EmailClient,
-    routes::{health_check, subscribe},
+    routes::{confirm, health_check, subscribe},
     AppState,
 };
 
@@ -43,7 +43,12 @@ impl Application {
         );
         let listener = TcpListener::bind(address).await?;
         let port = listener.local_addr().unwrap().port();
-        let server = run(listener, connection_pool, email_client)?;
+        let server = run(
+            listener,
+            connection_pool,
+            email_client,
+            configuration.application.base_url.clone(),
+        )?;
 
         Ok(Self { port, server })
     }
@@ -61,14 +66,17 @@ pub fn run(
     listener: TcpListener,
     db_pool: PgPool,
     email_client: EmailClient,
+    base_url: String,
 ) -> Result<Serve<TcpListener, Router, Router>, std::io::Error> {
     let state = AppState {
         db_pool,
         email_client: Arc::new(email_client),
+        base_url,
     };
     let app = Router::new()
         .route("/health_check", get(health_check))
         .route("/subscriptions", post(subscribe))
+        .route("/subscriptions/confirm", get(confirm))
         .with_state(state)
         .layer(TraceLayer::new_for_http());
 

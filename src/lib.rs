@@ -14,4 +14,5 @@ pub mod telemetry;
 struct AppState {
     db_pool: PgPool,
     email_client: Arc<EmailClient>,
+    base_url: String,
 }
