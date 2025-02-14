@@ -1,6 +1,6 @@
 use axum::{extract::State, http::StatusCode, Form};
 use chrono::Utc;
-use rand::{distributions::Alphanumeric, thread_rng, Rng};
+use rand::Rng;
 use sqlx::{Executor, Postgres, Transaction};
 use unicode_segmentation::UnicodeSegmentation;
 use uuid::Uuid;
@@ -8,7 +8,7 @@ use uuid::Uuid;
 use crate::{
     domain::{NewSubscriber, SubscriberEmail, SubscriberName},
     email_client::EmailClient,
-    AppState,
+    AppState, Error,
 };
 
 #[derive(serde::Deserialize)]
@@ -81,19 +81,19 @@ pub async fn store_token(
     transaction: &mut Transaction<'_, Postgres>,
     subscriber_id: Uuid,
     subscription_token: &str,
-) -> Result<(), sqlx::Error> {
+) -> Result<(), Error> {
     let query = sqlx::query!(
         r#"INSERT INTO subscription_tokens (subscription_token, subscriber_id)
         VALUES ($1, $2)"#,
         subscription_token,
         subscriber_id
     );
-    transaction.execute(query).await.map_err(|e| {
-        tracing::error!("Failed to execute query: {:?}", e);
-        e
-    })?;
+    transaction.execute(query).await?;
+
     Ok(())
 }
+
+
 
 #[tracing::instrument(
     name = "Send a confirmation email to a new subscriber",
@@ -165,8 +165,7 @@ pub async fn insert_subscriber(
 
 /// Generate a random 25-characters-long case-sensitive subscription token.
 fn generate_subscription_token() -> String {
-    let mut rng = thread_rng();
-    std::iter::repeat_with(|| rng.sample(Alphanumeric))
+    rand::rng().sample_iter(rand::distr::Alphanumeric)
         .map(char::from)
         .take(25)
         .collect()
