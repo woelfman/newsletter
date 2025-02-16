@@ -37,7 +37,7 @@ validator = "0.20.0"
 
 [dev-dependencies]
 claims = "0.8.0"
-fake = "3.1.0"
+fake = "4.0.0"
 quickcheck = "1.0.3"
 quickcheck_macros = "1.0.0"
 reqwest = "0.12.12"
