@@ -1,7 +1,6 @@
 use axum::{extract::State, response::Redirect, Form};
-use hmac::{Hmac, Mac};
-use secrecy::{ExposeSecret, SecretString};
-use urlencoding::encode;
+use axum_flash::Flash;
+use secrecy::SecretString;
 
 use crate::{
     authentication::{validate_credentials, Credentials},
@@ -16,19 +15,24 @@ pub struct FormData {
 }
 
 #[tracing::instrument(
-    skip(state, form),
+    skip(state, form, flash),
     fields(username=tracing::field::Empty, user_id=tracing::field::Empty)
 )]
-pub async fn login(State(state): State<AppState>, Form(form): Form<FormData>) -> Redirect {
+pub async fn login(
+    State(state): State<AppState>,
+    flash: Flash,
+    Form(form): Form<FormData>,
+) -> Result<Redirect, (Flash, Redirect)> {
+    dbg!(&flash);
     let credentials = Credentials {
         username: form.username,
         password: form.password,
     };
-    tracing::Span::current().record("username", &tracing::field::display(&credentials.username));
+    tracing::Span::current().record("username", tracing::field::display(&credentials.username));
     match validate_credentials(credentials, &state.db_pool).await {
         Ok(user_id) => {
-            tracing::Span::current().record("user_id", &tracing::field::display(&user_id));
-            Redirect::to("/")
+            tracing::Span::current().record("user_id", tracing::field::display(&user_id));
+            Ok(Redirect::to("/"))
         }
         Err(e) => {
             let e = match e {
@@ -39,15 +43,7 @@ pub async fn login(State(state): State<AppState>, Form(form): Form<FormData>) ->
                     LoginError::UnexpectedError(e.into())
                 }
             };
-            let query_string = format!("error={}", encode(&e.to_string()));
-            let hmac_tag = {
-                let mac = Hmac::<sha2::Sha256>::new_from_slice(
-                    state.hmac_secret.0.expose_secret().as_bytes(),
-                )
-                .unwrap();
-                mac.finalize().into_bytes()
-            };
-            Redirect::to(&format!("/login?{}&tag={:x}", query_string, hmac_tag))
+            Err((flash.error(e.to_string()), Redirect::to("/login")))
         }
     }
 }

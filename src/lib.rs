@@ -1,5 +1,6 @@
 use std::sync::Arc;
 
+use axum::extract::FromRef;
 use email_client::EmailClient;
 use sqlx::PgPool;
 use startup::HmacSecret;
@@ -18,4 +19,11 @@ pub struct AppState {
     email_client: Arc<EmailClient>,
     base_url: String,
     hmac_secret: HmacSecret,
+    flash_config: axum_flash::Config,
+}
+
+impl FromRef<AppState> for axum_flash::Config {
+    fn from_ref(state: &AppState) -> axum_flash::Config {
+        state.flash_config.clone()
+    }
 }

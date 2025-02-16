@@ -5,7 +5,7 @@ use axum::{
     serve::Serve,
     Router,
 };
-use secrecy::SecretString;
+use secrecy::{ExposeSecret, SecretString};
 use sqlx::{postgres::PgPoolOptions, PgPool};
 use tokio::net::TcpListener;
 use tower_http::trace::TraceLayer;
@@ -71,12 +71,15 @@ pub fn run(
     base_url: String,
     hmac_secret: SecretString,
 ) -> Result<Serve<TcpListener, Router, Router>, std::io::Error> {
+    let key = axum_flash::Key::from(hmac_secret.expose_secret().as_bytes());
     let state = AppState {
         db_pool,
         email_client: Arc::new(email_client),
         base_url,
         hmac_secret: HmacSecret(hmac_secret),
+        flash_config: axum_flash::Config::new(key),
     };
+
     let app = Router::new()
         .route("/health_check", get(health_check))
         .route("/", get(home))

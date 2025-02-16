@@ -8,6 +8,8 @@ edition = "2021"
 anyhow = "1.0.95"
 argon2 = { version = "0.5.3", features = ["rand", "std"] }
 axum = { version = "0.8.1", features = [] }
+# axum-flash 0.8 supports axum 0.7. There is a PR from this repo with axum 0.8 support
+axum-flash = { git = "https://github.com/aumetra/axum-flash.git", rev = "0832703" }
 base64 = "0.22.1"
 chrono = "0.4.39"
 config = { version = "0.15.8", default-features = false, features = ["yaml"] }
@@ -40,6 +42,6 @@ claims = "0.8.0"
 fake = "4.0.0"
 quickcheck = "1.0.3"
 quickcheck_macros = "1.0.0"
-reqwest = "0.12.12"
+reqwest = { version = "0.12.12", default-features = false, features = ["cookies", "json", "rustls-tls"] }
 serde_json = "1.0.138"
 wiremock = "0.6.2"

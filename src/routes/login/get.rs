@@ -1,67 +1,20 @@
-use axum::{
-    extract::{Query, State},
-    response::Html,
-};
-use hmac::{Hmac, Mac};
-use secrecy::ExposeSecret;
+use std::fmt::Write;
 
-use crate::{startup::HmacSecret, AppState};
+use axum::response::{Html, IntoResponse};
+use axum_flash::{IncomingFlashes, Level};
 
-#[derive(serde::Deserialize)]
-pub struct OptionalQueryParams {
-    error: Option<String>,
-    tag: Option<String>,
-}
-
-impl TryFrom<OptionalQueryParams> for QueryParams {
-    type Error = ();
-
-    fn try_from(value: OptionalQueryParams) -> Result<Self, Self::Error> {
-        match value {
-            OptionalQueryParams {
-                error: Some(error),
-                tag: Some(tag),
-            } => Ok(QueryParams { error, tag }),
-            _ => Err(()),
-        }
+pub async fn login_form(flash_messages: IncomingFlashes) -> (IncomingFlashes, impl IntoResponse) {
+    let mut error_html = String::new();
+    for (_level, content) in flash_messages
+        .iter()
+        .filter(|(level, _content)| *level == Level::Error)
+    {
+        writeln!(error_html, "<p><i>{}</i></p>", content).unwrap();
     }
-}
-
-pub struct QueryParams {
-    error: String,
-    tag: String,
-}
-
-impl QueryParams {
-    fn verify(self, secret: &HmacSecret) -> Result<String, anyhow::Error> {
-        let tag = hex::decode(&self.tag)?;
-        let query_string = format!("error={}", urlencoding::Encoded::new(&self.error));
-
-        let mut mac =
-            Hmac::<sha2::Sha256>::new_from_slice(secret.0.expose_secret().as_bytes()).unwrap();
-        mac.update(query_string.as_bytes());
-        mac.verify_slice(&tag)?;
-
-        Ok(self.error)
-    }
-}
-
-pub async fn login_form(
-    State(state): State<AppState>,
-    Query(query): Query<OptionalQueryParams>,
-) -> Html<String> {
-    let error_html = match <OptionalQueryParams as TryInto<QueryParams>>::try_into(query) {
-        Ok(query) => match query.verify(&state.hmac_secret) {
-            Ok(error) => format!("<p><i>{}</i></p>", htmlescape::encode_minimal(&error)),
-            Err(e) => {
-                tracing::warn!(error.message = %e, error.cause_chain = ?e, "Failed to verify query parameters using the HMAC tag");
-                "".into()
-            }
-        },
-        Err(_) => "".into(),
-    };
-    Html(format!(
-        r#"<!DOCTYPE html>
+    (
+        flash_messages,
+        Html(format!(
+            r#"<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta http-equiv="content-type" content="text/html; charset=utf-8">
@@ -88,5 +41,7 @@ pub async fn login_form(
     </form>
 </body>
 </html>"#,
-    ))
+        ))
+        .into_response(),
+    )
 }
