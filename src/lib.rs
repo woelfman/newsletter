@@ -2,7 +2,9 @@ use std::sync::Arc;
 
 use email_client::EmailClient;
 use sqlx::PgPool;
+use startup::HmacSecret;
 
+pub mod authentication;
 pub mod configuration;
 pub mod domain;
 pub mod email_client;
@@ -15,4 +17,5 @@ pub struct AppState {
     db_pool: PgPool,
     email_client: Arc<EmailClient>,
     base_url: String,
+    hmac_secret: HmacSecret,
 }
