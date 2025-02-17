@@ -5,10 +5,7 @@ use axum_flash::{IncomingFlashes, Level};
 
 pub async fn login_form(flash_messages: IncomingFlashes) -> (IncomingFlashes, impl IntoResponse) {
     let mut error_html = String::new();
-    for (_level, content) in flash_messages
-        .iter()
-        .filter(|(level, _content)| *level == Level::Error)
-    {
+    for (_level, content) in flash_messages.iter() {
         writeln!(error_html, "<p><i>{}</i></p>", content).unwrap();
     }
     (

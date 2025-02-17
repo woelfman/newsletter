@@ -29,6 +29,10 @@ impl TypedSession {
             .await
             .map_err(|e| anyhow::anyhow!(e))
     }
+
+    pub async fn log_out(self) -> Result<(), anyhow::Error> {
+        self.0.delete().await.map_err(|e| anyhow::anyhow!(e))
+    }
 }
 
 impl<S> FromRequestParts<S> for TypedSession

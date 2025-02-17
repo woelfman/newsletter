@@ -17,8 +17,8 @@ use crate::{
     configuration::{DatabaseSettings, Settings},
     email_client::EmailClient,
     routes::{
-        admin_dashboard, confirm, health_check, home, login, login_form, publish_newsletter,
-        subscribe,
+        admin_dashboard, change_password, change_password_form, confirm, health_check, home,
+        log_out, login, login_form, publish_newsletter, subscribe,
     },
     AppState,
 };
@@ -107,6 +107,9 @@ pub async fn run(
     let app = Router::new()
         .route("/", get(home))
         .route("/admin/dashboard", get(admin_dashboard))
+        .route("/admin/logout", post(log_out))
+        .route("/admin/password", get(change_password_form))
+        .route("/admin/password", post(change_password))
         .route("/health_check", get(health_check))
         .route("/login", get(login_form))
         .route("/login", post(login))
