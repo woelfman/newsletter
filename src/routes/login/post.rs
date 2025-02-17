@@ -5,6 +5,7 @@ use secrecy::SecretString;
 use crate::{
     authentication::{validate_credentials, Credentials},
     routes::error_chain_fmt,
+    session_state::TypedSession,
     AppState,
 };
 
@@ -15,15 +16,16 @@ pub struct FormData {
 }
 
 #[tracing::instrument(
-    skip(state, form, flash),
+    skip(state, form, flash, session),
     fields(username=tracing::field::Empty, user_id=tracing::field::Empty)
 )]
+#[axum::debug_handler]
 pub async fn login(
     State(state): State<AppState>,
     flash: Flash,
+    session: TypedSession,
     Form(form): Form<FormData>,
 ) -> Result<Redirect, (Flash, Redirect)> {
-    dbg!(&flash);
     let credentials = Credentials {
         username: form.username,
         password: form.password,
@@ -32,7 +34,14 @@ pub async fn login(
     match validate_credentials(credentials, &state.db_pool).await {
         Ok(user_id) => {
             tracing::Span::current().record("user_id", tracing::field::display(&user_id));
-            Ok(Redirect::to("/"))
+            if let Err(e) = session.renew().await {
+                return Err(login_redirect(flash, LoginError::UnexpectedError(e)));
+            }
+
+            if let Err(e) = session.insert_user_id(user_id).await {
+                return Err(login_redirect(flash, LoginError::UnexpectedError(e)));
+            }
+            Ok(Redirect::to("/admin/dashboard"))
         }
         Err(e) => {
             let e = match e {
@@ -46,6 +55,11 @@ pub async fn login(
             Err((flash.error(e.to_string()), Redirect::to("/login")))
         }
     }
+}
+
+// Redirect to the login page with an error message.
+fn login_redirect(flash: Flash, e: LoginError) -> (Flash, Redirect) {
+    (flash.error(e.to_string()), Redirect::to("/login"))
 }
 
 #[derive(thiserror::Error)]

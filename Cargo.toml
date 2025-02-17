@@ -7,7 +7,8 @@ edition = "2021"
 [dependencies]
 anyhow = "1.0.95"
 argon2 = { version = "0.5.3", features = ["rand", "std"] }
-axum = { version = "0.8.1", features = [] }
+async-trait = "0.1.86"
+axum = { version = "0.8.1", features = ["macros"] }
 # axum-flash 0.8 supports axum 0.7. There is a PR from this repo with axum 0.8 support
 axum-flash = { git = "https://github.com/aumetra/axum-flash.git", rev = "0832703" }
 base64 = "0.22.1"
@@ -26,15 +27,18 @@ serde-aux = "4.6.0"
 sha2 = "0.10.8"
 sqlx = { version = "0.8.3", features = ["chrono", "macros", "migrate", "postgres", "runtime-tokio-rustls", "uuid"], default-features = false }
 thiserror = "2.0.11"
+time = "0.3.37"
 tokio = { version = "1.43.0", features = ["macros", "rt-multi-thread"] }
 tower-http = { version = "0.6.2", features = ["trace"] }
+tower-sessions = "0.14.0"
+tower-sessions-redis-store = { version = "0.16.0", features = ["enable-rustls"] }
 tracing = "0.1.41"
 tracing-bunyan-formatter = "0.3.10"
 tracing-log = "0.2.0"
 tracing-subscriber = { version = "0.3.19", features = ["env-filter", "registry"] }
 unicode-segmentation = "1.12.0"
 urlencoding = "2.1.3"
-uuid = { version = "1.13.1", features = ["v4"] }
+uuid = { version = "1.13.1", features = ["serde", "v4"] }
 validator = "0.20.0"
 
 [dev-dependencies]

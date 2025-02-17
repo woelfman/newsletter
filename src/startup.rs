@@ -7,13 +7,19 @@ use axum::{
 };
 use secrecy::{ExposeSecret, SecretString};
 use sqlx::{postgres::PgPoolOptions, PgPool};
+use time::Duration;
 use tokio::net::TcpListener;
 use tower_http::trace::TraceLayer;
+use tower_sessions::{Expiry, SessionManagerLayer};
+use tower_sessions_redis_store::{fred::prelude::*, RedisStore};
 
 use crate::{
     configuration::{DatabaseSettings, Settings},
     email_client::EmailClient,
-    routes::{confirm, health_check, home, login, login_form, publish_newsletter, subscribe},
+    routes::{
+        admin_dashboard, confirm, health_check, home, login, login_form, publish_newsletter,
+        subscribe,
+    },
     AppState,
 };
 
@@ -23,7 +29,7 @@ pub struct Application {
 }
 
 impl Application {
-    pub async fn build(configuration: Settings) -> Result<Self, std::io::Error> {
+    pub async fn build(configuration: Settings) -> Result<Self, anyhow::Error> {
         let connection_pool =
             PgPoolOptions::new().connect_lazy_with(configuration.database.with_db());
 
@@ -50,7 +56,9 @@ impl Application {
             email_client,
             configuration.application.base_url.clone(),
             configuration.application.hmac_secret,
-        )?;
+            configuration.redis_uri,
+        )
+        .await?;
 
         Ok(Self { port, server })
     }
@@ -64,13 +72,14 @@ impl Application {
     }
 }
 
-pub fn run(
+pub async fn run(
     listener: TcpListener,
     db_pool: PgPool,
     email_client: EmailClient,
     base_url: String,
     hmac_secret: SecretString,
-) -> Result<Serve<TcpListener, Router, Router>, std::io::Error> {
+    redis_uri: SecretString,
+) -> Result<Serve<TcpListener, Router, Router>, anyhow::Error> {
     let key = axum_flash::Key::from(hmac_secret.expose_secret().as_bytes());
     let state = AppState {
         db_pool,
@@ -80,15 +89,32 @@ pub fn run(
         flash_config: axum_flash::Config::new(key),
     };
 
+    let pool = Pool::new(
+        Config::from_url(redis_uri.expose_secret())?,
+        None,
+        None,
+        None,
+        6,
+    )
+    .unwrap();
+    let _redis_conn = pool.connect();
+    pool.wait_for_connect().await?;
+    let session_store = RedisStore::new(pool);
+    let session_layer = SessionManagerLayer::new(session_store)
+        .with_secure(false)
+        .with_expiry(Expiry::OnInactivity(Duration::seconds(10)));
+
     let app = Router::new()
-        .route("/health_check", get(health_check))
         .route("/", get(home))
+        .route("/admin/dashboard", get(admin_dashboard))
+        .route("/health_check", get(health_check))
         .route("/login", get(login_form))
         .route("/login", post(login))
+        .route("/newsletters", post(publish_newsletter))
         .route("/subscriptions", post(subscribe))
         .route("/subscriptions/confirm", get(confirm))
-        .route("/newsletters", post(publish_newsletter))
         .with_state(state)
+        .layer(session_layer)
         .layer(TraceLayer::new_for_http());
 
     let server = axum::serve(listener, app);
