@@ -14,17 +14,17 @@ pub async fn admin_dashboard(
     State(state): State<AppState>,
     session: TypedSession,
 ) -> Result<Html<String>, impl IntoResponse> {
-    let username = if let Some(user_id) = session
+    let username = match session
         .get_user_id()
         .await
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR.into_response())?
-    {
+    { Some(user_id) => {
         get_username(user_id, &state.db_pool)
             .await
             .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR.into_response())?
-    } else {
+    } _ => {
         return Err(Redirect::to("/login").into_response());
-    };
+    }};
 
     Ok(Html(format!(
         r#"<!DOCTYPE html>
